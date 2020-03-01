@@ -4,104 +4,82 @@ const User = require("../../models/User")
 const gravatar = require("gravatar")
 const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
+const smtpTransport = require("../../config/smtp")
+const loginVerification = require("../../mails/loginVerification")
 const keys = require("../../config/keys")
 const passport = require("passport")
-const nodemailer = require("nodemailer")
-
-let smtpTransport = nodemailer.createTransport({
-  service: "Gmail",
-  auth: {
-    user: "maintainhost99@gmail.com",
-    pass: "deepakRoja"
-  }
-})
+const _ = require("lodash")
+let clientLink = require("../../config/clientLink")
 
 router.post("/register", (req, res) => {
-  //finding a user to check if exists
-  User.findOne({ mail: req.body.mail }).then(user => {
+  User.findOne({ mail: req.body.mail, isVerified: true }).then(user => {
     if (user) {
       return res.status(400).json({ msg: "mail already exists" })
     } else {
-      //No user
-      //creating the avatar
-      const avatar = gravatar.url(req.body.mail, { s: "200", r: "pg", d: "mm" })
-      //creating the user
-      User.create({ ...req.body, avatar, isVerified: false }).then(user => {
-        if (user) {
-          //creating a hashhed password
-          bcrypt.genSalt(11, (err, salt) => {
-            bcrypt.hash(user.password, salt, (err, hash) => {
-              if (err) {
-                return res
-                  .status(400)
-                  .json({ msg: "problem hashing the password" })
-              }
-              user.password = hash
-              user
-                .save()
-                .then(protectedUser => {
-                  //sending verification mail
-                  let rand = Math.floor(Math.random() * 100000000 + 1234571)
-                  protectedUser.verifyString = rand
-                  protectedUser.save().then(createdUser => {
-                    if (createdUser) {
-                      console.log(req.get("host"))
-                      link = `http://localhost:3000/verify/${rand}/${createdUser._id}`
-                      let mailOptions = {
-                        to: protectedUser.mail,
-                        subject: "Please verify your mail",
-                        html:
-                          "Hello.<br/>Please click on the link to verify your email.<br/><a href=" +
-                          link +
-                          ">Click here to verify</a>"
+      let newUser = _.pick(req.body, ["mail", "name"])
+      bcrypt.genSalt(11, (err, salt) => {
+        bcrypt.hash(req.body.password, salt, (err, hash) => {
+          if (err) {
+            return res.status(400).json({ msg: "problem hashing the password" })
+          }
+          newUser.password = hash
+          let rand = Math.floor(Math.random() * 100000000 + 1234571)
+          newUser.avatar = gravatar.url(req.body.mail, {
+            s: "200",
+            r: "pg",
+            d: "mm"
+          })
+          newUser.verifyString = rand
+          newUser.isVerified = false
+          User.create(newUser)
+            .then(createdUser => {
+              if (createdUser) {
+                let link = `${clientLink}/verify/${rand}/${createdUser._id}`
+                let mailOptions = loginVerification(createdUser.mail, link)
+                smtpTransport
+                  .sendMail(mailOptions)
+                  .then(response => {
+                    if (response) {
+                      console.log(response)
+                      const payload = {
+                        id: createdUser._id,
+                        name: createdUser.name,
+                        avatar: createdUser.avatar,
+                        isVerified: createdUser.isVerified
                       }
-                      smtpTransport
-                        .sendMail(mailOptions)
-                        .then(response => {
-                          if (response) {
-                            console.log(response)
-                            const payload = {
-                              id: protectedUser._id,
-                              name: protectedUser.name,
-                              avatar: protectedUser.avatar,
-                              isVerified: protectedUser.isVerified
-                            }
-                            jwt.sign(
-                              payload,
-                              keys.secret,
-                              { expiresIn: 3600 },
-                              (err, token) => {
-                                if (err) {
-                                  return res
-                                    .status(400)
-                                    .json({ msg: "error creating token" })
-                                }
-                                return res.json({
-                                  success: true,
-                                  token: "Bearer " + token
-                                })
-                              }
-                            )
+                      jwt.sign(
+                        payload,
+                        keys.secret,
+                        { expiresIn: 3600 },
+                        (err, token) => {
+                          if (err) {
+                            return res
+                              .status(400)
+                              .json({ msg: "error creating token" })
                           }
-                        })
-                        .catch(err => {
-                          console.log(err)
-                          return res
-                            .status(400)
-                            .json({ server: "error in sending mail" })
-                        })
+                          return res.json({
+                            success: true,
+                            token: "Bearer " + token
+                          })
+                        }
+                      )
                     }
                   })
-                })
-                .catch(error => {
-                  console.log(error)
-                  return res
-                    .status(400)
-                    .json({ msg: "error in saving hashed password" })
-                })
+                  .catch(err => {
+                    console.log(err)
+                    return res
+                      .status(400)
+                      .json({ server: "error in sending mail" })
+                  })
+              } else {
+                return res.status(400).json({ err: "no user created" })
+              }
             })
-          })
-        }
+            .catch(err => {
+              console.log(err)
+              return res.status(400).json({ server: "error in creating user" })
+            })
+        })
       })
     }
   })
