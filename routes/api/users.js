@@ -36,41 +36,29 @@ router.post("/register", (req, res) => {
               if (createdUser) {
                 let link = `${clientLink}/verify/${rand}/${createdUser._id}`
                 let mailOptions = loginVerification(createdUser.mail, link)
-                smtpTransport
-                  .sendMail(mailOptions)
-                  .then(response => {
-                    if (response) {
-                      console.log(response)
-                      const payload = {
-                        id: createdUser._id,
-                        name: createdUser.name,
-                        avatar: createdUser.avatar,
-                        isVerified: createdUser.isVerified
-                      }
-                      jwt.sign(
-                        payload,
-                        keys.secret,
-                        { expiresIn: 3600 },
-                        (err, token) => {
-                          if (err) {
-                            return res
-                              .status(400)
-                              .json({ msg: "error creating token" })
-                          }
-                          return res.json({
-                            success: true,
-                            token: "Bearer " + token
-                          })
-                        }
-                      )
+                smtpTransport.sendMail(mailOptions)
+                const payload = {
+                  id: createdUser._id,
+                  name: createdUser.name,
+                  avatar: createdUser.avatar,
+                  isVerified: createdUser.isVerified
+                }
+                jwt.sign(
+                  payload,
+                  keys.secret,
+                  { expiresIn: 3600 },
+                  (err, token) => {
+                    if (err) {
+                      return res
+                        .status(400)
+                        .json({ msg: "error creating token" })
                     }
-                  })
-                  .catch(err => {
-                    console.log(err)
-                    return res
-                      .status(400)
-                      .json({ server: "error in sending mail" })
-                  })
+                    return res.json({
+                      success: true,
+                      token: "Bearer " + token
+                    })
+                  }
+                )
               } else {
                 return res.status(400).json({ err: "no user created" })
               }
