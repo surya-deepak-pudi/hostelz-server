@@ -11,9 +11,9 @@ router.get(
   passport.authenticate("jwt", { session: false }),
   (req, res) => {
     Branch.find({ author: req.user._id })
-      .then(branches => {
+      .then((branches) => {
         if (branches) {
-          //console.log(branches)
+          console.log(branches)
           console.log(req.query)
           if (req.query.properties) {
             let props = req.query.properties.split(",")
@@ -22,13 +22,14 @@ router.get(
               branches[i] = _.pick(branches[i], props)
             }
           }
+          console.log(branches)
           return res.status(200).json(branches)
         } else {
           return res.status(400).json({ msg: "No branches available" })
         }
       })
-      .catch(err => {
-        console.log(err)
+      .catch((err) => {
+        console.log("error fiknding branches")
         return res.status(400).json({ server: "error finding branches" })
       })
   }
@@ -87,10 +88,10 @@ router.put(
   (req, res) => {
     Branch.findById(req.params.id)
     Branch.findByIdAndUpdate(req.params.id, req.body)
-      .then(branch => {
+      .then((branch) => {
         return res.status(200).json(branch)
       })
-      .catch(err => {
+      .catch((err) => {
         return res.status(400).json({ server: "error in updating branch" })
       })
   }
@@ -103,10 +104,10 @@ router.delete(
   branchesMiddleware.isAuthor,
   (req, res) => {
     Branch.findByIdAndDelete(req.params.id)
-      .then(branch => {
+      .then((branch) => {
         return res.status(200).json(branch)
       })
-      .catch(err => {
+      .catch((err) => {
         return res.status(400).json({ server: "error deleting branch" })
       })
   }
@@ -149,14 +150,14 @@ router.get(
   branchesMiddleware.isAuthor,
   (req, res) => {
     Room.findById(req.params.roomId)
-      .then(room => {
+      .then((room) => {
         if (room) {
           return res.status(200).json(room)
         } else {
           return res.status(400).json({ server: "Room doesnt exist" })
         }
       })
-      .catch(err => {
+      .catch((err) => {
         return res.status(400).json({ sever: "Error in finding the room" })
       })
   }
@@ -169,14 +170,14 @@ router.put(
   branchesMiddleware.isAuthor,
   (req, res) => {
     Room.findByIdAndUpdate(req.params.roomId, req.body)
-      .then(room => {
+      .then((room) => {
         if (room) {
           return res.status(200).json(room)
         } else {
           return res.status(400).json({ server: "room is not edited" })
         }
       })
-      .catch(err => {
+      .catch((err) => {
         return res.status(400).json({ server: "Error in editing the room" })
       })
   }

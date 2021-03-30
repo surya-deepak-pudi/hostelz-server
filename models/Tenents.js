@@ -2,7 +2,8 @@ const mongoose = require("mongoose")
 const Schema = mongoose.Schema
 
 const TenentSchema = new Schema({
-  name: String,
+  fname: String,
+  lname: String,
   mail: String,
   number: Number,
   advance: Number,
@@ -27,8 +28,8 @@ const TenentSchema = new Schema({
   dues: { type: Number, default: 0 },
   author: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  }
+    ref: "User",
+  },
 })
 
 module.exports = mongoose.model("Tenent", TenentSchema)
